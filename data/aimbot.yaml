@@ -1,0 +1,15 @@
+#自定义yaml文件
+
+
+train: data/images  # train images (relative to 'path') 128 images
+val: data/images  # val images (relative to 'path') 128 images
+test:  # test images (optional)
+
+# Classes
+#nc 类别的个数，有几种就写几种
+nc: 1  # number of classes
+#类别的顺序必须和标注文件的顺序一直
+names: ['person']
+
+
+

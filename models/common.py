@@ -298,7 +298,7 @@ class DetectMultiBackend(nn.Module):
         #weights 一般是我们的输入的权重模型的名字
         w = str(weights[0] if isinstance(weights, list) else weights)
         #Path是PurePath的子类，它除了支持PurePath的各种操作、属性和方法之外，还会真正访问底层的文件系统，包括判断Path对应的路径是否存在，获取Path对应路径的各种属性（如是否只读、是文件还是文件夹等），甚至可以对文件进行读写。
-        #Path(w).suffix 获取文件的'.'后面的所有内容
+        #Path(w).suffix 获取文件的'.'后面的所有内容 也就是获取文件后缀
         #lower()转化为小写
         suffix = Path(w).suffix.lower()
         suffixes = ['.pt', '.torchscript', '.onnx', '.engine', '.tflite', '.pb', '', '.mlmodel', '.xml']

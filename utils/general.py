@@ -161,6 +161,8 @@ def methods(instance):
 
 def print_args(name, opt):
     # Print argparser arguments
+
+    # 以 f开头表示在字符串内支持大括号内的python 表达式
     LOGGER.info(colorstr(f'{name}: ') + ', '.join(f'{k}={v}' for k, v in vars(opt).items()))
 
 

@@ -47,7 +47,7 @@ def get_hash(paths):
     size = sum(os.path.getsize(p) for p in paths if os.path.exists(p))  # sizes
     h = hashlib.md5(str(size).encode())  # hash sizes
     h.update(''.join(paths).encode())  # hash paths
-    return h.hexdigest()  # return hash
+    return h.hexdigest()  # return hashnum_workers
 
 
 def exif_size(img):

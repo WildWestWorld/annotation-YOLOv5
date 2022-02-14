@@ -50,7 +50,7 @@ from utils.general import (LOGGER, check_file, check_img_size, check_imshow, che
 from utils.plots import Annotator, colors, save_one_box
 from utils.torch_utils import select_device, time_sync
 
-
+#torch.no_grad()或者@torch.no_grad()中的数据不需要计算梯度，也不会进行反向传播
 @torch.no_grad()
 def run(weights=ROOT / 'yolov5n.pt',  # model.pt path(s)
         source=ROOT / 'data/images',  # file/dir/URL/glob, 0 for webcam
@@ -79,6 +79,7 @@ def run(weights=ROOT / 'yolov5n.pt',  # model.pt path(s)
         half=False,  # use FP16 half-precision inference
         dnn=False,  # use OpenCV DNN for ONNX inference
         ):
+    #souce 文件就是放要预测的图片的目录，然后他把他强转成文字行驶了
     source = str(source)
     save_img = not nosave and not source.endswith('.txt')  # save inference images
     is_file = Path(source).suffix[1:] in (IMG_FORMATS + VID_FORMATS)
@@ -229,7 +230,15 @@ def run(weights=ROOT / 'yolov5n.pt',  # model.pt path(s)
 
 def parse_opt():
     #定义了一个参数的对象，就是用来装载下列配置的一个容器
+    #argparse 模块可以让人轻松编写用户友好的命令行接口，程序定义它需要的参数，
+    #创建解析器
+    # argparse.ArgumentParser()创建一个 ArgumentParser 对象
+    #这是argparse模块初始化语句
     parser = argparse.ArgumentParser()
+    #通过调用 add_argument() 方法给 ArgumentParser对象添加程序所需的参数信息：
+    # 第一个参数是名字，
+    #nargs='+' 被parse_args会拼合成一个数列
+    #action='store_true'相当于给了个默认值true
     # 选择要使用的权重模型 以及路径 默认路径是根目录
     parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'yolov5n.pt', help='model path(s)')
     #需要预测的图片的主目录
@@ -259,14 +268,33 @@ def parse_opt():
     parser.add_argument('--hide-conf', default=False, action='store_true', help='hide confidences')
     parser.add_argument('--half', action='store_true', help='use FP16 half-precision inference')
     parser.add_argument('--dnn', action='store_true', help='use OpenCV DNN for ONNX inference')
+    #通过 parse_args() 方法解析参数   parser使我们自定义的名字 初始化的时候自定义的
     opt = parser.parse_args()
+    #如果我们上面设置的imgsz参数的长度是1的话，就把imgsz乘以2 ，不是1的话就乘以1
     opt.imgsz *= 2 if len(opt.imgsz) == 1 else 1  # expand
+    #在命令行中打印出我们写入的各项值，第一个参数是log的名字，无所谓的了解下就行
     print_args(FILE.stem, opt)
+    # 返回我们parse_args() 方法解析后的参数
     return opt
 
 
 def main(opt):
+    #查看依赖是否正确安装
     check_requirements(exclude=('tensorboard', 'thop'))
+    #vars() 函数返回对象object的属性和属性值的字典对象。
+    # 举例:
+    #>>> print(vars(Runoob))
+    # {'a': 1, '__module__': '__main__', '__doc__': None}
+    #参数前面加上* 号 ，意味着参数的个数不止一个，另外带一个星号（*）参数的函数传入的参数存储为一个元组（tuple）
+    #**将该对象以字典的形式储存
+
+    #def t2(param1, **param2):
+
+     #       print param1
+     #       print param2
+     #t2(1,a=2,b=3)
+
+
     run(**vars(opt))
 
 
