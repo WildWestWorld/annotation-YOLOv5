@@ -347,19 +347,21 @@ def check_imshow():
 def check_suffix(file='yolov5s.pt', suffix=('.pt',), msg=''):
     # Check file(s) for acceptable suffix
     if file and suffix:
-        #如果suffix是单个的，且是字符串形式就转化成数组
+        #如果后缀是是字符串形式的，转化为数组
         if isinstance(suffix, str):
             suffix = [suffix]
             #if isinstance(file, (list, tuple)) else [file]:
             #如果传入进来的是file类型是否是数组或者元组，如果不是就把他弄成数组类型
             #然后利用for循环获取文件名
+
         for f in file if isinstance(file, (list, tuple)) else [file]:
-            #Path(f).suffix 获取文件名的猴嘴
+            #Path(f).suffix 获取文件名的后缀
+            #和上面不同，这次获取的是文件名的后缀
             s = Path(f).suffix.lower()  # file suffix
             #如果后缀存在
             if len(s):
                 #assert 断言 如果真的就正常运行，如果是错误直接终止程序
-                #传入的suffix是所有可用的模型的集合
+                #传入的suffix是所有可用的模型的后缀集合
                 #suffix的后缀是存在的于我们从前面传入的suffix的话，就执行后面这句话
                 assert s in suffix, f"{msg}{f} acceptable suffix is {suffix}"
 
@@ -371,13 +373,22 @@ def check_yaml(file, suffix=('.yaml', '.yml')):
 
 def check_file(file, suffix=''):
     # Search/download file (if necessary) and return path
+    #检测文件的后缀名是否有且有效
     check_suffix(file, suffix)  # optional
+    #将文件名转化为字符串形式
     file = str(file)  # convert to str()
+    #检测是文件，或者文件名为空 就返回文件名给调用的方法
     if Path(file).is_file() or file == '':  # exists
         return file
+    #如果文件是http:/形式为开头的 也就是他输错了，少数个/
     elif file.startswith(('http:/', 'https:/')):  # download
+        #就把少个/的http改成对的双斜杠
         url = str(Path(file)).replace(':/', '://')  # Pathlib turns :// -> :/
+        #urllib.parse.unquote解码链接中的特殊符号， 例如'%2F' 转码成 '/'
+        #然后将链接从?前面隔开，只要?前面的部分
+        #path.name就是文件前面的部分，也就是去除掉后缀的部分
         file = Path(urllib.parse.unquote(file).split('?')[0]).name  # '%2F' to '/', split https://url.com/file.txt?auth
+        #如果获取文件的命后，如果被判定为文件时，就打印出发现url中文件了
         if Path(file).is_file():
             LOGGER.info(f'Found {url} locally at {file}')  # file already exists
         else:
@@ -385,12 +396,19 @@ def check_file(file, suffix=''):
             torch.hub.download_url_to_file(url, file)
             assert Path(file).exists() and Path(file).stat().st_size > 0, f'File download failed: {url}'  # check
         return file
+    #如果找不到文件也不是网络连接，那么开启搜索
     else:  # search
         files = []
         for d in 'data', 'models', 'utils':  # search directories
+            #glob.glob 返回所有匹配的文件路径列表。
+            #也就是在根目录下的data/models/utils里面搜索同名文件
+            #extend() 函数用于在列表末尾一次性追加另一个序列中的多个值（用新列表扩展原来的列表）
             files.extend(glob.glob(str(ROOT / d / '**' / file), recursive=True))  # find file
+            #如果是files数组空的就说没找到文件
         assert len(files), f'File not found: {file}'  # assert file was found
+            #如果files数组长度为1
         assert len(files) == 1, f"Multiple files match '{file}', specify exact path: {files}"  # assert unique
+        #返回数组中第一个值
         return files[0]  # return file
 
 
@@ -659,6 +677,9 @@ def resample_segments(segments, n=1000):
 def scale_coords(img1_shape, coords, img0_shape, ratio_pad=None):
     # Rescale coords (xyxy) from img1_shape to img0_shape
     if ratio_pad is None:  # calculate from img0_shape
+        #取最小值
+        # img1_shape = torch.Size([416, 640])
+        # img0_shape =(716, 1146, 3)
         gain = min(img1_shape[0] / img0_shape[0], img1_shape[1] / img0_shape[1])  # gain  = old / new
         pad = (img1_shape[1] - img0_shape[1] * gain) / 2, (img1_shape[0] - img0_shape[0] * gain) / 2  # wh padding
     else:

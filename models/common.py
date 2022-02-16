@@ -316,11 +316,15 @@ class DetectMultiBackend(nn.Module):
         if data:  # data.yaml path (optional)
             with open(data, errors='ignore') as f:
                 names = yaml.safe_load(f)['names']  # class names
-
+        #如果是以pt为结尾的
         if pt:  # PyTorch
+            #加载模型，如果权重是数组形式就为 weights 不然就是为我们上面下载的权重模型
             model = attempt_load(weights if isinstance(weights, list) else w, map_location=device)
+            #获取步长
             stride = max(int(model.stride.max()), 32)  # model stride
+            #获取名字
             names = model.module.names if hasattr(model, 'module') else model.names  # get class names
+            #self=权重
             self.model = model  # explicitly assign for to(), cpu(), cuda(), half()
         elif jit:  # TorchScript
             LOGGER.info(f'Loading {w} for TorchScript inference...')
@@ -408,10 +412,15 @@ class DetectMultiBackend(nn.Module):
 
     def forward(self, im, augment=False, visualize=False, val=False):
         # YOLOv5 MultiBackend inference
+        #设置池化层 卷积的大小 以及总体的大小
+        #batch = 1 channal =3 height =640 width=640
         b, ch, h, w = im.shape  # batch, channel, height, width
         if self.pt or self.jit:  # PyTorch
+            #因为我们的后缀基本都是pt 所以 y = self.model(im, augment=augment, visualize=visualize)
+            #返回的是y[0]
             y = self.model(im) if self.jit else self.model(im, augment=augment, visualize=visualize)
             return y if val else y[0]
+
         elif self.dnn:  # ONNX OpenCV DNN
             im = im.cpu().numpy()  # torch to numpy
             self.net.setInput(im)
@@ -464,11 +473,23 @@ class DetectMultiBackend(nn.Module):
 
         y = torch.tensor(y) if isinstance(y, np.ndarray) else y
         return (y, []) if val else y
-
+    #Warmup有助于减缓模型在初始阶段对mini-batch的提前过拟合现象，保持分布的平稳
+    # 有助于保持模型深层的稳定性
     def warmup(self, imgsz=(1, 3, 640, 640), half=False):
         # Warmup model by running inference once
+
         if self.pt or self.jit or self.onnx or self.engine:  # warmup types
+            #如果我们选择device是torch里面的device 而且选择不是cpu模式那么就可以执行这条语句
             if isinstance(self.device, torch.device) and self.device.type != 'cpu':  # only warmup GPU models
+            # 单个*就是元祖也就是torch.zeros(1)
+            #*parameter是用来接受任意多个参数并将其放在一个元组中。
+            #意思是,zeros(2,3,4)产生多维的“2行3列的0矩阵”，这个例子是4个0矩阵
+             # 如果输入zeros(2,3,2,2)则也生成4个0矩阵，
+             # 也就是说这次要成的是一个1行3列的0矩阵 有640个
+
+            #这个to与前面操作无关，to就是把他变成对应device的模式
+
+            #type(torch.half) 精度下降，显存占用降低
                 im = torch.zeros(*imgsz).to(self.device).type(torch.half if half else torch.float)  # input image
                 self.forward(im)  # warmup
 

@@ -61,7 +61,7 @@ def run(weights=ROOT / 'yolov5n.pt',  # model.pt path(s)
         max_det=1000,  # maximum detections per image
         device='',  # cuda device, i.e. 0 or 0,1,2,3 or cpu
         view_img=False,  # show results
-        save_txt=False,  # save results to *.txt
+        save_txt=True,  # save results to *.txt
         save_conf=False,  # save confidences in --save-txt labels
         save_crop=False,  # save cropped prediction boxes
         nosave=False,  # do not save images/videos
@@ -79,12 +79,24 @@ def run(weights=ROOT / 'yolov5n.pt',  # model.pt path(s)
         half=False,  # use FP16 half-precision inference
         dnn=False,  # use OpenCV DNN for ONNX inference
         ):
-    #souce 文件就是放要预测的图片的目录，然后他把他强转成文字行驶了
+    #souce 文件就是存放要预测的图片的目录，然后他把他强转成文字类型了 souce有可能不是路径也可能是地址
     source = str(source)
+    #not 取反
+    #nosave 是我们自定义的值，决定是否保存被检测完毕的图片 默认是false
+    #source.endswith('.txt') 要预测的图片的目录不是以txt结尾
     save_img = not nosave and not source.endswith('.txt')  # save inference images
+
+    #[1:] 去除掉数列第一个元素后的数列
+    #Path(source).suffix 获取到文件的后缀
+    #判定文件的后缀名是否在我们自定义的图片格式数列或者视频格式数列
     is_file = Path(source).suffix[1:] in (IMG_FORMATS + VID_FORMATS)
+    #判断souce是否为网站 先最小化，再检测是否是以http请求开头的
     is_url = source.lower().startswith(('rtsp://', 'rtmp://', 'http://', 'https://'))
+    #source.isnumeric 判定source是否只由数字组成
+    #source.endswith('.txt') 要预测的图片的目录不是以txt结尾
+    #is_url and not is_file 是链接，且不是文件
     webcam = source.isnumeric() or source.endswith('.txt') or (is_url and not is_file)
+    #如果即是链接又是文件
     if is_url and is_file:
         source = check_file(source)  # download
 
@@ -93,6 +105,7 @@ def run(weights=ROOT / 'yolov5n.pt',  # model.pt path(s)
     #该部分的主要作用就是创建输出目录
     #increment_path
     # 该函数用于自动生成目录并把训练好的图片放进去，而且目录不会重名因为程序写了自动将文件夹的末尾的数字+1，例如文件夹是exp1下一次就是exp2
+
     save_dir = increment_path(Path(project) / name, exist_ok=exist_ok)  # increment run
     (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
 
@@ -109,6 +122,8 @@ def run(weights=ROOT / 'yolov5n.pt',  # model.pt path(s)
     imgsz = check_img_size(imgsz, s=stride)  # check image size
 
     # Half
+    #a &= b 等价于 a = a & b
+    #也就是说若是half参数是false，该命令就不会触发
     half &= (pt or jit or onnx or engine) and device.type != 'cpu'  # FP16 supported on limited backends with CUDA
     if pt or jit:
         model.model.half() if half else model.model.float()
@@ -120,30 +135,59 @@ def run(weights=ROOT / 'yolov5n.pt',  # model.pt path(s)
         dataset = LoadStreams(source, img_size=imgsz, stride=stride, auto=pt)
         bs = len(dataset)  # batch_size
     else:
+        #pt的加载图像
+        #里面是图片的路径
         dataset = LoadImages(source, img_size=imgsz, stride=stride, auto=pt)
         bs = 1  # batch_size
     vid_path, vid_writer = [None] * bs, [None] * bs
 
     # Run inference
+    #Warmup有助于减缓模型在初始阶段对mini-batch的提前过拟合现象，保持分布的平稳
+    # 有助于保持模型深层的稳定性
+    #此处的warmup似乎毫无作用
     model.warmup(imgsz=(1 if pt else bs, 3, *imgsz), half=half)  # warmup
+
     dt, seen = [0.0, 0.0, 0.0], 0
+    #dataset 是我们加载的图像
+    #返回值是  path, img, img0, self.cap, s
     for path, im, im0s, vid_cap, s in dataset:
+        #计算时间的，可有可无
         t1 = time_sync()
+        # torch.from_numpy()方法把数组转换成张量，且二者共享内存，对张量进行修改比如重新赋值，那么原始数组也会相应发生改变。
         im = torch.from_numpy(im).to(device)
+        #如果half是true会触发该命令，但一般是false
         im = im.half() if half else im.float()  # uint8 to fp16/32
+        #矩阵里面的值都会是0-1之间
+        #也就是归一化处理
         im /= 255  # 0 - 255 to 0.0 - 1.0
+
+        #一般的长度都会为三，
         if len(im.shape) == 3:
+            #im[None]就是增加一个维度，在数组中填了个none
+            #此时的im就变成四个维度了[1,x,x,x]
             im = im[None]  # expand for batch dim
+
+         # 计算时间的，可有可无
         t2 = time_sync()
+        # 计算时间的，可有可无
         dt[0] += t2 - t1
 
+        #visualize开启时使用，我们也不开启
         # Inference
+        # visualize开启时使用，我们也不开启
         visualize = increment_path(save_dir / Path(path).stem, mkdir=True) if visualize else False
+
+        #预测的结果 有用
         pred = model(im, augment=augment, visualize=visualize)
+
+        # 计算时间的，可有可无
         t3 = time_sync()
+        # 计算时间的，可有可无
         dt[1] += t3 - t2
 
         # NMS
+        #非极大值抑制（Non-Maximum Suppression，NMS），顾名思义就是抑制不是极大值的元素，可以理解为局部最大搜索。这个局部代表的是一个邻域，邻域有两个参数可变，一是邻域的维数，二是邻域的大小。
+        #简单来说就是我们预测出来可能不止一个框，我们使用NMS把最有可能的框给选出来
         pred = non_max_suppression(pred, conf_thres, iou_thres, classes, agnostic_nms, max_det=max_det)
         dt[2] += time_sync() - t3
 
@@ -151,25 +195,59 @@ def run(weights=ROOT / 'yolov5n.pt',  # model.pt path(s)
         # pred = utils.general.apply_classifier(pred, classifier_model, im, im0s)
 
         # Process predictions
+
+        #>>> seasons = ['Spring', 'Summer', 'Fall', 'Winter']
+        # >>> list(enumerate(seasons))
+        # [(0, 'Spring'), (1, 'Summer'), (2, 'Fall'), (3, 'Winter')]
+
         for i, det in enumerate(pred):  # per image
             seen += 1
             if webcam:  # batch_size >= 1
                 p, im0, frame = path[i], im0s[i].copy(), dataset.count
                 s += f'{i}: '
             else:
+                #frame= 0
+                #pt会走这里
+                #p=正在检测的图片所在的路径
+                #im0是数组矩阵
                 p, im0, frame = path, im0s.copy(), getattr(dataset, 'frame', 0)
 
             p = Path(p)  # to Path
+            #p.name是文件（除开路径的那种）
             save_path = str(save_dir / p.name)  # im.jpg
+            #'runs\\detect\\exp10\\labels\\1e46742a4266d2e0d18d7a10bfd4482665f2cf50'
             txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # im.txt
+           #'image 1/14 D:\\Project\\copy\\yolov5-master\\data\\images\\1e46742a4266d2e0d18d7a10bfd4482665f2cf50.jpg: 416x640 '
+            #就是在后面加了个矩阵大小
             s += '%gx%g ' % im.shape[2:]  # print string
+            # gn =tensor([3669, 2293, 3669, 2293])
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
+            #imc=im0
             imc = im0.copy() if save_crop else im0  # for save_crop
+
+            #画框
             annotator = Annotator(im0, line_width=line_thickness, example=str(names))
+
+
+            #如果det有长度，也就是说 NMS后有数据
             if len(det):
                 # Rescale boxes from img_size to im0 size
+                #im的大小后面的
+                #round()四舍五入
+
+                #det[:, :4]  det前4个数组 0-4
+                #tensor([[  1.50192,  20.34012, 192.13800, 403.37643],
+                # [146.53203,  29.60571, 259.56622, 404.02249],
+                 # [195.36108,  34.58754, 425.87671, 400.76617],
+                  # [ -1.29509, 302.81317, 172.69252, 409.88971]], device='cuda:0')
+
+                #im.shape[2:] 从第三个元素开始 im.shape[2:] = torch.Size([416, 640])
+
+                #im0.shape =(716, 1146, 3)
                 det[:, :4] = scale_coords(im.shape[2:], det[:, :4], im0.shape).round()
 
+
+                #打印结果可
                 # Print results
                 for c in det[:, -1].unique():
                     n = (det[:, -1] == c).sum()  # detections per class
@@ -177,14 +255,20 @@ def run(weights=ROOT / 'yolov5n.pt',  # model.pt path(s)
 
                 # Write results
                 for *xyxy, conf, cls in reversed(det):
+
                     if save_txt:  # Write to file
+                        #这段代码我们需要，他里面是结果的类别，x的位置，y的位置，高度和宽度的百分比
                         xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
                         line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # label format
                         with open(txt_path + '.txt', 'a') as f:
                             f.write(('%g ' * len(line)).rstrip() % line + '\n')
-
+                    #我们会运行下面这段代码
+                    #下面这段是绘制方框代码
                     if save_img or save_crop or view_img:  # Add bbox to image
+                        # 获取类别索引
                         c = int(cls)  # integer class
+                        #如果隐藏标签参数是true就是none  就没标签了
+                        #如果有hide_conf隐藏可能性指标，只显示标签的名字
                         label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f}')
                         annotator.box_label(xyxy, label, color=colors(c, True))
                         if save_crop:
@@ -192,10 +276,13 @@ def run(weights=ROOT / 'yolov5n.pt',  # model.pt path(s)
 
             # Stream results
             im0 = annotator.result()
+            #view_img自定义参数，当打开时会实时显示你的检测的结果
             if view_img:
                 cv2.imshow(str(p), im0)
                 cv2.waitKey(1)  # 1 millisecond
 
+
+            #保存图片
             # Save results (image with detections)
             if save_img:
                 if dataset.mode == 'image':
@@ -251,7 +338,7 @@ def parse_opt():
     parser.add_argument('--max-det', type=int, default=1000, help='maximum detections per image')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--view-img', action='store_true', help='show results')
-    parser.add_argument('--save-txt', action='store_true', help='save results to *.txt')
+    parser.add_argument('--save-txt',  default=True, action='store_true', help='save results to *.txt')
     parser.add_argument('--save-conf', action='store_true', help='save confidences in --save-txt labels')
     parser.add_argument('--save-crop', action='store_true', help='save cropped prediction boxes')
     parser.add_argument('--nosave', action='store_true', help='do not save images/videos')

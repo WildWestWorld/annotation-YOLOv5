@@ -86,15 +86,23 @@ class Ensemble(nn.ModuleList):
         y = torch.cat(y, 1)  # nms ensemble
         return y, None  # inference, train output
 
-
+#尝试加载权重
 def attempt_load(weights, map_location=None, inplace=True, fuse=True):
     from models.yolo import Detect, Model
 
     # Loads an ensemble of models weights=[a,b,c] or a single model weights=[a] or weights=a
+    #Model Ensemble 模型集成
     model = Ensemble()
+    #循环权重
     for w in weights if isinstance(weights, list) else [weights]:
+        #加载模型
         ckpt = torch.load(attempt_download(w), map_location=map_location)  # load
         if fuse:
+            #append() 方法用于在数组末尾添加新的元素。
+            # 如果ckpt.get('ema') 为真也就是有ema 就是使用ckpt['ema']
+            # 然后float().fuse.最后执行
+            #EMA（滑动平均）
+            #其实EMA就是把每一次梯度下降更新后的权重值和前一次的权重值进行了一种“联系”，这种联系让我们的模型更新还需要看上一次更新的脸色，没那么“随意”。
             model.append(ckpt['ema' if ckpt.get('ema') else 'model'].float().fuse().eval())  # FP32 model
         else:
             model.append(ckpt['ema' if ckpt.get('ema') else 'model'].float().eval())  # without layer fuse
