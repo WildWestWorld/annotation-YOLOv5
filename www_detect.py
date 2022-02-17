@@ -9,6 +9,7 @@ import torch.backends.cudnn as cudnn
 import mss
 import numpy as np
 import cv2
+import pyautogui
 import win32con
 import win32gui
 from skimage.transform import rescale
@@ -30,7 +31,7 @@ from utils.torch_utils import select_device, time_sync
 # 导入letterbox
 from utils.augmentations import Albumentations, augment_hsv, copy_paste, letterbox, mixup, random_perspective
 
-weights = ROOT / 'yolov5n.pt'  # 权重文件地址   .pt文件
+weights = ROOT / 'best.pt'  # 权重文件地址   .pt文件
 source = ROOT / 'data/images'  # 测试数据文件(图片或视频)的保存路径
 data = ROOT / 'data/coco128.yaml'  # 标签文件地址   .yaml文件
 
@@ -122,9 +123,15 @@ def detect(img):
                 label = f'{names[c]} {conf:.2f}'
                 annotator.box_label(xyxy, label, color=colors(c, True))
 
+                location = pyautogui.position()
+                print(location)
+
+
+
                 cls = names[int(cls)]
                 conf = float(conf)
                 detections.append({'class': cls, 'conf': conf, 'position': xywh})
+
     # Stream results
         im0 = annotator.result()
 
@@ -135,14 +142,17 @@ def detect(img):
 
 
     cv2.imshow('test', im0)
-    pushKeyAsc =cv2.waitKey(1);
+    pushKeyAsc=cv2.waitKey(1);
+    #如果按下的键时esc时
     if pushKeyAsc%256 == 27:
         #关闭所有窗口
         cv2.destroyAllWindows();
         #退出循环并打印出文件
         exit("停止截屏")
 
+    return detections
 
+    # pyautogui.moveTo(int(xywh[0]) + 290 + xywh[3] // 4, int(xywh[1]) + xywh[3] // 2)
 
     # return detections
 
@@ -154,7 +164,7 @@ def detect(img):
 #mss 用于截图
 sct =mss.mss();
 #monitor 就是我们截取屏幕图片的大小位置的配置，前面两个是起始点的位置 后面的宽度和高度是截取屏幕图片的大小
-monitor={'left':290,'top':0,'width':640,'height':640}
+monitor={'left':290,'top':0,'width':960,'height':640}
 #自定义的窗口名字
 window_name='test'
 #死循环
@@ -170,9 +180,26 @@ while True:
     imgArray = cv2.cvtColor(imgArray, cv2.COLOR_BGRA2BGR)
     # imgArray = np.array(img)
     # 传入一张图片
-    detect(imgArray)
+    res = detect(imgArray)
+    # print(*res)
+    # print(res)
 
+    aim=[0,0]
 
+    for item in res:
+            if(item["class"]=="person" and item["conf"]>=0.55):
+                print(item["position"])
+                xywh=item["position"]
+
+                location = pyautogui.position()
+                aim[0]=location.x
+                aim[1]=location.y
+                if((location.x ** 2 +location.y ** 2)-(aim[0]**2 +aim[1]**2)<= (location.x ** 2 +location.y ** 2) - ((int(xywh[0]) + 290 + xywh[2] // 2)**2 +(int(xywh[1]) + xywh[3]//2) **2)):
+                    pyautogui.moveTo(int(xywh[0]) + 290 + xywh[2] * 0.5  , int(xywh[1]) + xywh[3]*0.5  )
+                    # pyautogui.move(0,xywh[2]*0.000)
+                    aim[0]=int(xywh[0]) + 290 + xywh[2] // 2
+                    aim[1]=int(xywh[1]) + xywh[3]//2
+                    break
 
 
 
