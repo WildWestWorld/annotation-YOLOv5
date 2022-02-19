@@ -138,22 +138,36 @@ def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleF
         #np.mod 取余 dw%stride
         #stride =32
         #这也就意味着dw/dh不会大于32
+        #c.为什么np.mod函数的后面用32？因为Yolov5的网络经过5次下采样，而2的5次方，等于32。所以至少要去掉32的倍数，再进行取余。
         dw, dh = np.mod(dw, stride), np.mod(dh, stride)  # wh padding
     #不会走下面这段代码
     elif scaleFill:  # stretch
         dw, dh = 0.0, 0.0
         new_unpad = (new_shape[1], new_shape[0])
         ratio = new_shape[1] / shape[1], new_shape[0] / shape[0]  # width, height ratios
+
+
+    ## new_unpad = (shape[1] * r) 缩放后的宽度,shape[0] * r缩放后的高度
+    #shape[::-1] 原来图片的宽度和高度
+    #如果图片的宽度和高度不等于缩放后的宽度,shape[0] * r缩放后的高度 就裁剪原来的照片大小为缩放后的照片大小
+    if shape[::-1] != new_unpad:  # resize
+        im = cv2.resize(im, new_unpad, interpolation=cv2.INTER_LINEAR)
+
     #dw/2 因为要分给宽度的两边
     dw /= 2  # divide padding into 2 sides
     #dw/2 因为要分给高度的两边
     dh /= 2
-    ## new_unpad = (shape[1] * r) 缩放后的宽度,shape[0] * r缩放后的高度
-    if shape[::-1] != new_unpad:  # resize
-        im = cv2.resize(im, new_unpad, interpolation=cv2.INTER_LINEAR)
+
+    #设置黑边的上下两端的高度
     top, bottom = int(round(dh - 0.1)), int(round(dh + 0.1))
+    #黑边的看度左右两端的宽度
     left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
+    #cv2.copyMakeBorder 照片的四个位置设置黑边
+    # color=(114, 114, 114) 是一种灰色
+    #BORDER_CONSTANT = 0 一种模式，就是根据你给的参数去添加对应颜色的边框
+    # 常量法就是以一个常量像素值(由参数 value给定)填充扩充的边界值，这种方式在仿射变换，透视变换中非常常见
     im = cv2.copyMakeBorder(im, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)  # add border
+    #返回的是im图片   ratio 缩小比例 (dw, dh) 分给单边的黑边大小
     return im, ratio, (dw, dh)
 
 
