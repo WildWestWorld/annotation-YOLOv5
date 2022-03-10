@@ -96,6 +96,7 @@ def attempt_load(weights, map_location=None, inplace=True, fuse=True):
     #循环权重
     for w in weights if isinstance(weights, list) else [weights]:
         #加载模型
+
         ckpt = torch.load(attempt_download(w), map_location=map_location)  # load
         if fuse:
             #append() 方法用于在数组末尾添加新的元素。
@@ -118,8 +119,10 @@ def attempt_load(weights, map_location=None, inplace=True, fuse=True):
         elif type(m) is Conv:
             m._non_persistent_buffers_set = set()  # pytorch 1.6.0 compatibility
 
+    # 如果只有一个模型，则直接返回该模型
     if len(model) == 1:
         return model[-1]  # return model
+    # 否则融合多个模型
     else:
         print(f'Ensemble created with {weights}\n')
         for k in ['names']:

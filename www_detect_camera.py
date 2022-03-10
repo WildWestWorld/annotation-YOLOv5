@@ -276,41 +276,43 @@ def detect(img):
 # path = 'D://Project//copy//yolov5-master//data//images//1e9e1ca1c7e3d1f3471d601d12066f683cb0bb57.jpg'
 # img = cv2.imread(path)
 
+# 获取摄像头，传入0表示获取系统默认摄像头
+camera = cv2.VideoCapture(0)
 
-#mss 用于截图
-sct =mss.mss();
-#monitor 就是我们截取屏幕图片的大小位置的配置，前面两个是起始点的位置 后面的宽度和高度是截取屏幕图片的大小
-monitor={'left':290,'top':0,'width':960,'height':640}
-#自定义的窗口名字
-window_name='test'
+# 打开camera
+camera.open(0)
+
+
 #死循环
-while True:
+while camera.isOpened():
+    # 获取画面
+    success, frame = camera.read()
+    if not success:
+        break
 
-    # 目的：截取当前屏幕，然后使用numpy转化为矩阵，再用cv2.imshow将图片展示出来，达到一个实时屏幕的目的
-
-    #抓取屏幕，monitor使我们自定义的截图图片的配置，就在上面
-
-    img =sct.grab(monitor=monitor)
-    imgArray= np.array(img)
+    #镜像翻转
+    frame = cv2.flip(frame, 1)
     # 将图片转 BGR
 
     # imgArray = cv2.cvtColor(imgArray, cv2.COLOR_BGRA2BGR)
-    imgArray = cv2.cvtColor(imgArray, cv2.COLOR_BGR2RGB)
+    imgArray = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
     # imgArray = np.array(img)
     # 传入一张图片
 
-    res = detect(imgArray)
+    res = detect(frame)
 
     cv2.imshow('test', res[1])
 
 
-    moveMouse(res[0])
 
     pushKeyAsc=cv2.waitKey(1);
     #如果按下的键时esc时
     if pushKeyAsc%256 == 27:
         #关闭所有窗口
+        # 关闭摄像头
+        camera.release()
+
         cv2.destroyAllWindows();
         #退出循环并打印出文件
         exit("停止截屏")
